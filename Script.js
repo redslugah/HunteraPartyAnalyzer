@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Huntera Party Analyzer
 // @namespace    huntera-party-analyzer
-// @version      4.9
+// @version      5.0
 // @description  Analise de dano e experiencia de ate 4 personagens em uma party.
 // @homepageURL  https://github.com/redslugah/HunteraPartyAnalyzer
 // @updateURL    https://raw.githubusercontent.com/redslugah/HunteraPartyAnalyzer/main/Script.js
