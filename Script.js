@@ -375,7 +375,10 @@
 
       request("POST", path, {
         party_name: name,
-        password: password
+        password: password,
+        // O servidor guarda este identificador apenas ao criar a PT, para
+        // informar a todos qual personagem pertence ao líder.
+        client_id: tabId
       }, function (err, status, data) {
         if (err) {
           error.textContent = err.message === "API timeout"
@@ -695,7 +698,8 @@
         maxHit: Number(c.maxHit) || 0,
         xp: Number(c.xp) || 0,
         lastSeen: Number(c.lastSeen) || 0,
-        rolling10sDps: Number(c.rolling10sDps) || 0
+        rolling10sDps: Number(c.rolling10sDps) || 0,
+        isLeader: Boolean(c.isLeader)
       };
     });
 
@@ -774,7 +778,7 @@
           '<button class="detail-back" type="button">← Voltar para a PT</button>' +
           '<div class="detail-heading">' +
             '<span class="detail-name">' + esc(selected.name) + '</span>' +
-            '<span class="detail-voc">' + esc(selectedVoc ? selectedVoc.label : selected.voc) + '</span>' +
+            '<span class="detail-voc">' + esc(selectedVoc ? selectedVoc.label : selected.voc) + (selected.isLeader ? " 👑" : "") + '</span>' +
           '</div>' +
           '<div class="detail-grid">' +
             '<div class="detail-stat"><span class="detail-label">Dano total</span><span class="detail-value">' + fmt(selected.damage) + '</span></div>' +
@@ -825,6 +829,7 @@
       var tag = voc
         ? " [" + voc.key + "]"
         : "";
+      var leaderTag = c.isLeader ? " 👑" : "";
 
       var row = document.createElement("div");
 
@@ -856,6 +861,7 @@
               '<span class="name">' +
                 esc(c.name) +
                 esc(tag) +
+                leaderTag +
               '</span>' +
 
               '<span class="value">Dano: ' +
@@ -1357,8 +1363,15 @@
               return;
             }
 
-            if (partyName && partyPassword && !reconnectInProgress) {
-              reconnectParty(0, reconnectGeneration);
+            if (partyName && partyPassword) {
+              // Enquanto uma reconexão estiver em andamento, o polling ainda
+              // recebe 401 usando o token antigo. Isso é esperado enquanto o
+              // líder recria a PT (ou antes de a próxima tentativa conectar).
+              // Não limpe as credenciais nem abra o formulário nesse caso:
+              // os membros não líderes precisam continuar tentando conectar.
+              if (!reconnectInProgress) {
+                reconnectParty(0, reconnectGeneration);
+              }
               return;
             }
 
@@ -1435,7 +1448,8 @@
         debugLog("Party não encontrada; tentando recriar");
         request("POST", "/party/create", {
           party_name: partyName,
-          password: partyPassword
+          password: partyPassword,
+          client_id: tabId
         }, function (createErr, createStatus, createData) {
           if (generation !== reconnectGeneration) {
             return;
