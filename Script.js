@@ -232,13 +232,13 @@
     "*{box-sizing:border-box}",
     ":host{all:initial}",
 
-    ".panel{font-family:Inter,system-ui,-apple-system,'Segoe UI',Arial,sans-serif;color:#eef2f6;width:460px;max-width:calc(100vw - 16px);background:rgba(16,20,28,.92);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.09);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);overflow:hidden;font-variant-numeric:tabular-nums}",
+    ".panel{font-family:Inter,system-ui,-apple-system,'Segoe UI',Arial,sans-serif;color:#eef2f6;width:382px;max-width:calc(100vw - 16px);background:rgba(16,20,28,.92);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.09);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);overflow:hidden;font-variant-numeric:tabular-nums}",
 
-    ".panel.small{width:310px;max-width:calc(100vw - 16px)}",
+    ".panel.small{width:258px;max-width:calc(100vw - 16px)}",
 
-    ".head{display:flex;align-items:center;gap:6px;padding:7px 9px;cursor:move;user-select:none;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(255,255,255,.08)}",
+    ".head{display:flex;align-items:center;gap:5px;padding:7px 5px 7px 7px;cursor:move;user-select:none;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(255,255,255,.08)}",
 
-    ".title{font-weight:700;font-size:12.5px;color:#6fd8f0;letter-spacing:.03em;flex:1;white-space:nowrap}",
+    ".title{font-weight:700;font-size:12.5px;color:#6fd8f0;letter-spacing:.03em;flex:0 0 auto;white-space:nowrap}",
 
     ".status{font-size:9px;font-weight:700;letter-spacing:.04em}",
 
@@ -246,7 +246,7 @@
 
     ".server-health{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#8b95a3;box-shadow:0 0 0 2px rgba(139,149,163,.15)}.server-health.online{background:#4ee87a;box-shadow:0 0 0 2px rgba(78,232,122,.16)}.server-health.checking{background:#e8a44e;box-shadow:0 0 0 2px rgba(232,164,78,.16)}.server-health.offline{background:#e8544e;box-shadow:0 0 0 2px rgba(232,84,78,.16)}",
 
-    ".btn{appearance:none;border:none;background:transparent;color:#aeb8c4;cursor:pointer;font-size:13px;line-height:1;padding:3px 5px;border-radius:5px}.btn:hover{background:rgba(255,255,255,.08);color:#fff}",
+    ".btn{appearance:none;border:none;background:transparent;color:#aeb8c4;cursor:pointer;font-size:13px;line-height:1;padding:3px 4px;border-radius:5px}.btn:hover{background:rgba(255,255,255,.08);color:#fff}",
 
     ".body{padding:8px 9px}",
 
@@ -535,7 +535,7 @@
   function header() {
     panel.innerHTML =
       '<div class="head">' +
-        '<span class="title">⚔️ Huntera Party Analyzer</span>' +
+        '<span class="title">⚔️ ' + (smallMode ? "HPA" : "Huntera Party Analyzer") + '</span>' +
         '<span class="status off">OFFLINE</span>' +
       '<span class="server-health checking" title="Verificando servidor"></span>' +
         '<button class="btn" data-a="party" title="Trocar ou criar PT">♟</button>' +
@@ -555,6 +555,7 @@
       );
 
       panel.classList.toggle("small", smallMode);
+      panel.querySelector(".title").textContent = "⚔️ " + (smallMode ? "HPA" : "Huntera Party Analyzer");
       this.title = smallMode ? "Modo normal" : "Modo pequeno";
       this.textContent = smallMode ? "N" : "P";
       selectedCharacterId = null;
