@@ -85,7 +85,7 @@
   }
 
   var viewerOnly = localStorage.getItem(VIEWER_KEY) === "1";
-  var bigMode = localStorage.getItem(BIG_KEY) === "1";
+  var smallMode = localStorage.getItem(BIG_KEY) === "1";
 
   var nameSetupOpen = false;
   var registered = false;
@@ -261,13 +261,13 @@
     "*{box-sizing:border-box}",
     ":host{all:initial}",
 
-    ".panel{font-family:Inter,system-ui,-apple-system,'Segoe UI',Arial,sans-serif;color:#eef2f6;width:310px;max-width:calc(100vw - 16px);background:rgba(16,20,28,.92);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.09);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);overflow:hidden;font-variant-numeric:tabular-nums}",
+    ".panel{font-family:Inter,system-ui,-apple-system,'Segoe UI',Arial,sans-serif;color:#eef2f6;width:382px;max-width:calc(100vw - 16px);background:rgba(16,20,28,.92);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.09);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);overflow:hidden;font-variant-numeric:tabular-nums}",
 
-    ".panel.big{width:520px;max-width:calc(100vw - 16px)}",
+    ".panel.small{width:258px;max-width:calc(100vw - 16px)}",
 
-    ".head{display:flex;align-items:center;gap:6px;padding:7px 9px;cursor:move;user-select:none;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(255,255,255,.08)}",
+    ".head{display:flex;align-items:center;gap:5px;padding:7px 5px 7px 7px;cursor:move;user-select:none;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(255,255,255,.08)}",
 
-    ".title{font-weight:700;font-size:12.5px;color:#6fd8f0;letter-spacing:.03em;flex:1}",
+    ".title{font-weight:700;font-size:12.5px;color:#6fd8f0;letter-spacing:.03em;flex:0 0 auto;white-space:nowrap}",
 
     ".status{font-size:9px;font-weight:700;letter-spacing:.04em}",
 
@@ -275,7 +275,7 @@
 
     ".server-health{width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#8b95a3;box-shadow:0 0 0 2px rgba(139,149,163,.15)}.server-health.online{background:#4ee87a;box-shadow:0 0 0 2px rgba(78,232,122,.16)}.server-health.checking{background:#e8a44e;box-shadow:0 0 0 2px rgba(232,164,78,.16)}.server-health.offline{background:#e8544e;box-shadow:0 0 0 2px rgba(232,84,78,.16)}",
 
-    ".btn{appearance:none;border:none;background:transparent;color:#aeb8c4;cursor:pointer;font-size:13px;line-height:1;padding:3px 5px;border-radius:5px}.btn:hover{background:rgba(255,255,255,.08);color:#fff}",
+    ".btn{appearance:none;border:none;background:transparent;color:#aeb8c4;cursor:pointer;font-size:13px;line-height:1;padding:3px 4px;border-radius:5px}.btn:hover{background:rgba(255,255,255,.08);color:#fff}",
 
     ".body{padding:8px 9px}",
 
@@ -303,14 +303,14 @@
 
     ".setup{display:flex;gap:6px;align-items:center}.setup input,.setup select,.party-setup input{min-width:0;background:rgba(4,7,12,.55);border:1px solid rgba(255,255,255,.12);border-radius:6px;color:#eef2f6;font-size:11px;padding:5px 6px;font-family:inherit}.setup input{flex:1}.setup button,.party-actions button{border:1px solid rgba(255,255,255,.12);background:#2f6aa3;color:#fff;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:11px;font-weight:600}.party-setup{display:flex;flex-direction:column;gap:6px}.party-setup input{width:100%}.party-actions{display:flex;gap:6px}.party-actions button{flex:1}.viewer{font-size:10px;color:#8fb8d6;text-decoration:underline;cursor:pointer;margin-top:7px}.empty{text-align:center;color:#8b95a3;font-size:10px;padding:8px}.error{text-align:center;color:#e8a44e;font-size:10px;padding:8px;min-height:12px}",
 
-    ".panel.big .title{font-size:18px}.panel.big .status{font-size:12px}.panel.big .btn{font-size:18px}.panel.big .body{padding:12px}.panel.big .row{border-radius:9px}.panel.big .content{padding:9px 14px}.panel.big .rank{font-size:16px;width:22px}.panel.big .name,.panel.big .value,.panel.big .value-xp{font-size:16px}.panel.big .sub{font-size:12px}.panel.big .summary{font-size:11px}"
+    ".panel.small .summary{font-size:9px}"
 
   ].join("");
 
   root.appendChild(style);
 
   var panel = document.createElement("div");
-  panel.className = "panel" + (bigMode ? " big" : "");
+  panel.className = "panel" + (smallMode ? " small" : "");
 
   root.appendChild(panel);
 
@@ -404,7 +404,10 @@
 
       request("POST", path, {
         party_name: name,
-        password: password
+        password: password,
+        // O servidor guarda este identificador apenas ao criar a PT, para
+        // informar a todos qual personagem pertence ao líder.
+        client_id: tabId
       }, function (err, status, data) {
         if (err) {
           error.textContent = err.message === "API timeout"
@@ -565,11 +568,11 @@
   function header() {
     panel.innerHTML =
       '<div class="head">' +
-        '<span class="title">⚔️ Huntera Party Analyzer</span>' +
+        '<span class="title">⚔️ ' + (smallMode ? "HPA" : "Huntera Party Analyzer") + '</span>' +
         '<span class="status off">OFFLINE</span>' +
       '<span class="server-health checking" title="Verificando servidor"></span>' +
         '<button class="btn" data-a="party" title="Trocar ou criar PT">♟</button>' +
-        '<button class="btn" data-a="big" title="Modo grande">⛶</button>' +
+        '<button class="btn" data-a="big" title="' + (smallMode ? "Modo normal" : "Modo pequeno") + '">' + (smallMode ? "N" : "P") + '</button>' +
         '<button class="btn" data-a="export" title="Exportar dados da PT">⇩</button>' +
         '<button class="btn" data-a="reset" title="Resetar contagem">↺</button>' +
         '<button class="btn" data-a="rename" title="Renomear">✎</button>' +
@@ -577,14 +580,18 @@
       '<div class="body"></div>';
 
     panel.querySelector('[data-a="big"]').addEventListener("click", function () {
-      bigMode = !bigMode;
+      smallMode = !smallMode;
 
       localStorage.setItem(
         BIG_KEY,
-        bigMode ? "1" : "0"
+        smallMode ? "1" : "0"
       );
 
-      panel.classList.toggle("big", bigMode);
+      panel.classList.toggle("small", smallMode);
+      panel.querySelector(".title").textContent = "⚔️ " + (smallMode ? "HPA" : "Huntera Party Analyzer");
+      this.title = smallMode ? "Modo normal" : "Modo pequeno";
+      this.textContent = smallMode ? "N" : "P";
+      selectedCharacterId = null;
 
       render(
         latestState || {
@@ -728,7 +735,8 @@
         maxHit: Number(c.maxHit) || 0,
         xp: Number(c.xp) || 0,
         lastSeen: Number(c.lastSeen) || 0,
-        rolling10sDps: Number(c.rolling10sDps) || 0
+        rolling10sDps: Number(c.rolling10sDps) || 0,
+        isLeader: Boolean(c.isLeader)
       };
     });
 
@@ -737,7 +745,21 @@
       return b.damage - a.damage;
     });
 
-    if (selectedCharacterId && !chars[selectedCharacterId]) {
+    var visibleList = list;
+    if (smallMode && !viewerOnly) {
+      var localName = (myName || "").toLowerCase();
+      visibleList = list.filter(function (character) {
+        return character.id === tabId ||
+          (localName && character.name.toLowerCase() === localName);
+      });
+    }
+
+    if (
+      selectedCharacterId &&
+      !visibleList.some(function (character) {
+        return character.id === selectedCharacterId;
+      })
+    ) {
       selectedCharacterId = null;
     }
 
@@ -748,13 +770,13 @@
 
     var now = Number(data.serverNow) || Date.now();
 
-    var total = list.reduce(function (s, c) {
+    var total = visibleList.reduce(function (s, c) {
       return s + c.damage;
     }, 0);
 
     var max = Math.max.apply(
       null,
-      list.map(function (c) {
+      visibleList.map(function (c) {
         return c.damage;
       })
     ) || 1;
@@ -777,16 +799,16 @@
         '</div>' +
       '</div>';
 
-    if (!list.length) {
+    if (!visibleList.length) {
       body.innerHTML =
         summary +
-        '<div class="empty">Aguardando dano...</div>';
+        '<div class="empty">' + (smallMode && !viewerOnly ? "Aguardando seus dados..." : "Aguardando dano...") + '</div>';
 
       return;
     }
 
     if (selectedCharacterId) {
-      var selected = list.find(function (character) {
+      var selected = visibleList.find(function (character) {
         return character.id === selectedCharacterId;
       });
 
@@ -807,7 +829,7 @@
           '<button class="detail-back" type="button">← Voltar para a PT</button>' +
           '<div class="detail-heading">' +
             '<span class="detail-name">' + esc(selected.name) + '</span>' +
-            '<span class="detail-voc">' + esc(selectedVoc ? selectedVoc.label : selected.voc) + '</span>' +
+            '<span class="detail-voc">' + esc(selectedVoc ? selectedVoc.label : selected.voc) + (selected.isLeader ? " 👑" : "") + '</span>' +
           '</div>' +
           '<div class="detail-grid">' +
             '<div class="detail-stat"><span class="detail-label">Dano total</span><span class="detail-value">' + fmt(selected.damage) + '</span></div>' +
@@ -831,7 +853,7 @@
     var rows = document.createElement("div");
     rows.className = "rows";
 
-    list.forEach(function (c, i) {
+    visibleList.forEach(function (c, i) {
       var pct = Math.max(
         2,
         Math.round(c.damage / max * 100)
@@ -858,6 +880,7 @@
       var tag = voc
         ? " [" + voc.key + "]"
         : "";
+      var leaderTag = c.isLeader ? " 👑" : "";
 
       var row = document.createElement("div");
 
@@ -889,6 +912,7 @@
               '<span class="name">' +
                 esc(c.name) +
                 esc(tag) +
+                leaderTag +
               '</span>' +
 
               '<span class="value">Dano: ' +
@@ -1417,8 +1441,15 @@
               return;
             }
 
-            if (partyName && partyPassword && !reconnectInProgress) {
-              reconnectParty(0, reconnectGeneration);
+            if (partyName && partyPassword) {
+              // Enquanto uma reconexão estiver em andamento, o polling ainda
+              // recebe 401 usando o token antigo. Isso é esperado enquanto o
+              // líder recria a PT (ou antes de a próxima tentativa conectar).
+              // Não limpe as credenciais nem abra o formulário nesse caso:
+              // os membros não líderes precisam continuar tentando conectar.
+              if (!reconnectInProgress) {
+                reconnectParty(0, reconnectGeneration);
+              }
               return;
             }
 
@@ -1517,7 +1548,8 @@
         debugLog("Party não encontrada; tentando recriar");
         request("POST", "/party/create", {
           party_name: partyName,
-          password: partyPassword
+          password: partyPassword,
+          client_id: tabId
         }, function (createErr, createStatus, createData) {
           if (generation !== reconnectGeneration) {
             return;

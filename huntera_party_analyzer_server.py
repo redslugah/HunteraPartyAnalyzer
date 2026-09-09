@@ -41,6 +41,7 @@ def new_party():
         "xp_events": [],
         "xp_active_ms": 0,
         "xp_latest_event_ts": None,
+        "leader_client_id": None,
     }
 
 def clean_events(party, now=None):
@@ -101,6 +102,7 @@ def build_state(party, now=None):
             "lastSeen": c["lastSeen"],
             "lastHit": c.get("lastHit", 0),
             "xp": c.get("xp", 0),
+            "isLeader": cid == party.get("leader_client_id"),
         }
     return {
         "resetAt": party["resetAt"],
@@ -248,6 +250,7 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 name = str(data.get("party_name", "")).strip()[:40]
                 password = str(data.get("password", ""))
+                leader_client_id = str(data.get("client_id", ""))[:100]
                 if len(name) < 2 or len(password) < 4:
                     send_json(self, 400, {"error": "party name and password are required"})
                     return
@@ -264,6 +267,7 @@ class Handler(BaseHTTPRequestHandler):
                 party["name"] = name
                 party["salt"] = salt.hex()
                 party["password_hash"] = password_hash(password, salt)
+                party["leader_client_id"] = leader_client_id or None
                 parties[token] = party
                 send_json(self, 201, {"party_name": name, "party_token": token})
                 return
