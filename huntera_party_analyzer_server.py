@@ -149,6 +149,26 @@ def event_capacity_available(party, events, cid, limit):
         return False
     return sum(1 for event in events if event["cid"] == cid) < limit
 
+def matching_character_ids(party, name):
+    """Return the IDs for the same game character, independent of its tab."""
+    identity = name.casefold()
+    return [
+        cid for cid, character in party["chars"].items()
+        if character["name"].casefold() == identity
+    ]
+
+def replace_client_id(party, old_cid, new_cid):
+    """Move a character and its accumulated data to a new browser session."""
+    party["chars"][new_cid] = party["chars"].pop(old_cid)
+    for event in party["events"]:
+        if event["cid"] == old_cid:
+            event["cid"] = new_cid
+    for event in party["xp_events"]:
+        if event["cid"] == old_cid:
+            event["cid"] = new_cid
+    if party.get("leader_client_id") == old_cid:
+        party["leader_client_id"] = new_cid
+
 def auth_party(handler):
     token = handler.headers.get("X-Party-Token", "")
     party = parties.get(token)
@@ -277,6 +297,26 @@ class Handler(BaseHTTPRequestHandler):
                 voc = str(data.get("voc", ""))[:3]
                 if not cid or not name:
                     send_json(self, 400, {"error": "client_id and name are required"})
+                    return
+                # client_id belongs to a browser session, not to the game
+                # character.  A reload/new tab must take over the existing
+                # character instead of consuming a second slot in the party.
+                same_character = matching_character_ids(party, name)
+                other_same_character = [
+                    existing_cid for existing_cid in same_character
+                    if existing_cid != cid
+                ]
+                if cid not in party["chars"]:
+                    if len(same_character) == 1:
+                        replace_client_id(party, same_character[0], cid)
+                    elif len(same_character) > 1:
+                        # Do not guess which legacy duplicate owns this name.
+                        send_json(self, 409, {"error": "ambiguous_character"})
+                        return
+                elif other_same_character:
+                    # A live client ID cannot be reassigned to a character
+                    # already owned by another client ID.
+                    send_json(self, 409, {"error": "character_in_use"})
                     return
                 if cid not in party["chars"] and len(party["chars"]) >= MAX_CHARS:
                     send_json(self, 409, {"error": "max_chars", "maxChars": MAX_CHARS})
