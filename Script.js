@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Huntera Party Analyzer
 // @namespace    huntera-party-analyzer
-// @version      5.1
+// @version      5.2
 // @description  Analise de dano e experiencia de ate 4 personagens em uma party.
 // @homepageURL  https://github.com/redslugah/HunteraPartyAnalyzer
 // @updateURL    https://raw.githubusercontent.com/redslugah/HunteraPartyAnalyzer/main/Script.js
@@ -89,6 +89,11 @@
 
   var nameSetupOpen = false;
   var registered = false;
+  // Registration is separate from party connectivity. A full party is a
+  // stable condition, so polling must not retry /register every second.
+  var registrationState = "unknown";
+  var registrationBlockedState = null;
+  var registrationInProgress = false;
   var latestState = null;
   var combatObserver = null;
   var seenNodes = new WeakSet();
@@ -106,6 +111,9 @@
     debugLog("Token da party atualizado por outra aba", { remote: remote });
     partyToken = newValue;
     registered = false;
+    registrationState = "unknown";
+    registrationBlockedState = null;
+    registrationInProgress = false;
     reconnectInProgress = false;
     reconnectGeneration++;
     latestStateRequestId++;
@@ -118,6 +126,27 @@
       return;
     }
     console.info("[Huntera Party Analyzer] " + message, details);
+  }
+
+  function partyStateSignature(state) {
+    if (!state || !state.chars) {
+      return "";
+    }
+    return Object.keys(state.chars).sort().map(function (id) {
+      var character = state.chars[id];
+      return id + ":" + character.name + ":" + character.voc;
+    }).join("|");
+  }
+
+  function partyHasMyCharacterElsewhere(state) {
+    if (!state || !state.chars || !myName) {
+      return false;
+    }
+    var identity = myName.toLowerCase();
+    return Object.keys(state.chars).some(function (id) {
+      return id !== tabId &&
+        String(state.chars[id].name || "").toLowerCase() === identity;
+    });
   }
 
   function setServerHealth(status) {
@@ -408,6 +437,8 @@
         localStorage.removeItem(PARTY_TOKEN_KEY);
         nameSetupOpen = false;
         registered = false;
+        registrationState = "unknown";
+        registrationBlockedState = null;
         render(latestState || { chars: {}, activeSeconds: 0 });
         if (!myName && !viewerOnly) {
           showSetup();
@@ -493,6 +524,8 @@
       myName = name;
       myVoc = select.value;
       viewerOnly = false;
+      registrationState = "unknown";
+      registrationBlockedState = null;
 
       localStorage.setItem(NAME_KEY, myName);
       localStorage.setItem(VOC_KEY, myVoc);
@@ -924,9 +957,18 @@
   }
 
   function register() {
-    if (viewerOnly || !myName || !partyToken) {
+    if (
+      viewerOnly ||
+      !myName ||
+      !partyToken ||
+      registrationState !== "unknown" ||
+      registrationInProgress
+    ) {
       return;
     }
+
+    registrationInProgress = true;
+    var registrationToken = partyToken;
 
     setStatus(
       "CONECTANDO",
@@ -943,6 +985,13 @@
       },
       function (err, status, data) {
 
+        // The party may have been recreated while this request was in flight.
+        if (registrationToken !== partyToken) {
+          return;
+        }
+
+        registrationInProgress = false;
+
         if (err) {
           registered = false;
           setStatus("OFFLINE", "err");
@@ -951,6 +1000,14 @@
 
         if (status === 409) {
           registered = false;
+          registrationState = "blocked";
+          // /register errors do not contain a party snapshot. If polling has
+          // not produced one yet, capture the first snapshot without treating
+          // it as a change that warrants an immediate retry.
+          registrationBlockedState = latestState
+            ? partyStateSignature(latestState)
+            : null;
+          debugLog("Registro bloqueado por 409; aguardando mudanÃ§a da party");
           setStatus("4/4", "err");
 
           latestState =
@@ -963,11 +1020,14 @@
 
         if (status !== 200 || !data) {
           registered = false;
+          registrationState = "unknown";
           setStatus("ERRO", "err");
           return;
         }
 
         registered = true;
+        registrationState = "registered";
+        registrationBlockedState = null;
 
         render(data);
       }
@@ -1019,7 +1079,7 @@
 
         if (status === 409) {
           registered = false;
-          register();
+          registrationState = "unknown";
         }
 
       }
@@ -1042,7 +1102,7 @@
       function (err, status) {
         if (status === 409) {
           registered = false;
-          register();
+          registrationState = "unknown";
         }
       }
     );
@@ -1397,6 +1457,9 @@
             GM_deleteValue(PARTY_TOKEN_KEY);
             localStorage.removeItem(PARTY_TOKEN_KEY);
             registered = false;
+            registrationState = "unknown";
+            registrationBlockedState = null;
+            registrationInProgress = false;
             showPartySetup();
             setStatus("PT NÃO CONECTADA", "off");
             return;
@@ -1410,11 +1473,27 @@
           return;
         }
 
-        if (
-          !viewerOnly &&
-          myName &&
-          !registered
-        ) {
+        var currentPartyState = partyStateSignature(data);
+        if (registrationState === "unknown" &&
+            partyHasMyCharacterElsewhere(data)) {
+          // This is the old tab after another session took over the same
+          // character. Do not reclaim it on the next /hit or /xp 409.
+          registered = false;
+          registrationState = "claimed";
+          registrationBlockedState = currentPartyState;
+          debugLog("Personagem jÃ¡ estÃ¡ ativo em outra aba");
+          setStatus("OUTRA ABA", "err");
+        } else if (registrationState === "blocked") {
+          if (registrationBlockedState === null) {
+            registrationBlockedState = currentPartyState;
+          } else if (currentPartyState !== registrationBlockedState) {
+            debugLog("Estado da party mudou; liberando novo registro");
+            registrationState = "unknown";
+            registrationBlockedState = null;
+          }
+        }
+
+        if (!viewerOnly && myName && registrationState === "unknown") {
           register();
         }
 
@@ -1455,6 +1534,9 @@
         latestStateRequestId++;
         isPartyLeader = leaderPartyName === partyName;
         registered = false;
+        registrationState = "unknown";
+        registrationBlockedState = null;
+        registrationInProgress = false;
         reconnectInProgress = false;
         if (!viewerOnly && myName) {
           register();
@@ -1482,6 +1564,9 @@
             latestStateRequestId++;
             localStorage.setItem(PARTY_NAME_KEY, partyName);
             registered = false;
+            registrationState = "unknown";
+            registrationBlockedState = null;
+            registrationInProgress = false;
             reconnectInProgress = false;
             if (!viewerOnly && myName) {
               register();
