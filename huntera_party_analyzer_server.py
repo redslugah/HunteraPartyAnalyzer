@@ -187,9 +187,9 @@ def auth_party(handler):
     if not party:
         print(
                 f"[AUTH 401] "
-                f"path='{self.path}' "
+                f"path='{handler.path}' "
                 f"token='{token[:8] if token else 'NONE'}...' "
-                f"ip='{self.client_address[0]}' "
+                f"ip='{handler.client_address[0]}' "
                 f"reason='party_not_found_or_expired'"
             )
         return None
