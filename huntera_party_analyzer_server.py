@@ -133,6 +133,16 @@ def cleanup_parties(now=None):
         if party.get("lastActivity", party["resetAt"]) < cutoff
     ]
     for token in expired:
+        party = parties[token]
+
+        print(
+            f"[PARTY DELETE] "
+            f"party='{party['name']}' "
+            f"token='{token[:8]}...' "
+            f"reason='idle_timeout' "
+            f"age_ms={now_ms() - party['lastActivity']} "
+            f"players={len(party['chars'])}"
+        )
         del parties[token]
 
 def allow_rate(ip, action, limit, now=None):
@@ -175,9 +185,24 @@ def auth_party(handler):
     token = handler.headers.get("X-Party-Token", "")
     party = parties.get(token)
     if not party:
+        print(
+                f"[AUTH 401] "
+                f"path='{self.path}' "
+                f"token='{token[:8] if token else 'NONE'}...' "
+                f"ip='{self.client_address[0]}' "
+                f"reason='party_not_found_or_expired'"
+            )
         return None
     now = now_ms()
     if now - party.get("lastActivity", party["resetAt"]) > PARTY_IDLE_TIMEOUT * 1000:
+        print(
+                f"[PARTY DELETE] "
+                f"party='{party['name']}' "
+                f"token='{token[:8]}...' "
+                f"reason='idle_timeout' "
+                f"age_ms={now_ms() - party['lastActivity']} "
+                f"players={len(party['chars'])}"
+            )
         del parties[token]
         return None
     party["lastActivity"] = now
@@ -269,6 +294,12 @@ class Handler(BaseHTTPRequestHandler):
                 party["password_hash"] = password_hash(password, salt)
                 party["leader_client_id"] = leader_client_id or None
                 parties[token] = party
+                print(
+                        f"[PARTY CREATE] "
+                        f"party='{name}' "
+                        f"leader_client_id='{leader_client_id}' "
+                        f"token='{token[:8]}...'"
+                    )
                 send_json(self, 201, {"party_name": name, "party_token": token})
                 return
 
@@ -285,6 +316,12 @@ class Handler(BaseHTTPRequestHandler):
                                 password_hash(password, bytes.fromhex(party["salt"])),
                                 party["password_hash"])):
                         party["lastActivity"] = now_ms()
+                        print(
+                                f"[PARTY CONNECT] "
+                                f"party='{party['name']}' "
+                                f"token='{token[:8]}...' "
+                                f"ip='{self.client_address[0]}'"
+                            )
                         send_json(self, 200, {"party_name": party["name"], "party_token": token})
                         return
                 send_json(self, 401, {"error": "invalid_party_credentials"})
@@ -335,6 +372,14 @@ class Handler(BaseHTTPRequestHandler):
                     "lastSeen": now_ms(),
                     "lastHit": old.get("lastHit", 0) if old else 0,
                 }
+                print(
+                        f"[PLAYER CONNECT] "
+                        f"player='{name}' "
+                        f"voc='{voc}' "
+                        f"client_id='{cid}' "
+                        f"party='{party['name']}' "
+                        f"players={len(party['chars'])}/{MAX_CHARS}"
+                    )
                 send_json(self, 200, party_payload(party))
                 return
 
@@ -409,6 +454,12 @@ class Handler(BaseHTTPRequestHandler):
                 cid = str(data.get("client_id", ""))[:100]
                 if cid in party["chars"]:
                     party["chars"][cid]["lastSeen"] = now_ms()
+                else:
+                    print(
+                            f"[HEARTBEAT UNKNOWN] "
+                            f"party='{party['name']}' "
+                            f"client_id='{cid}'"
+                        )
                 send_json(self, 200, {"ok": True})
                 return
 
