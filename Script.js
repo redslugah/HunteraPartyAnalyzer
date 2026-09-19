@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name         Huntera Party Analyzer
 // @namespace    huntera-party-analyzer
-// @version      5.3
+// @version      5.4
 // @description  Analise de dano e experiencia de ate 4 personagens em uma party.
 // @homepageURL  https://github.com/redslugah/HunteraPartyAnalyzer
 // @updateURL    https://raw.githubusercontent.com/redslugah/HunteraPartyAnalyzer/main/Script.js
 // @downloadURL  https://raw.githubusercontent.com/redslugah/HunteraPartyAnalyzer/main/Script.js
 // @match        https://huntera.com.br/*
-// @run-at       document-end
+// @run-at       document-idle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -29,12 +29,18 @@
   window.__hunteraPartyAnalyzerStarted = true;
 
   function startWhenBodyIsReady() {
-    if (!document.body) {
+    if (!document.body || document.readyState === "loading") {
       setTimeout(startWhenBodyIsReady, 50);
       return;
     }
 
-    main();
+    try {
+      main();
+    } catch (e) {
+      window.__hunteraPartyAnalyzerStarted = false;
+      console.error("[Huntera Party Analyzer] Falha na inicializacao; tentando novamente", e);
+      setTimeout(startWhenBodyIsReady, 500);
+    }
   }
 
   startWhenBodyIsReady();
@@ -271,6 +277,16 @@
 
   document.body.appendChild(host);
 
+  function ensureHostAttached() {
+    if (!document.body || host.parentNode === document.body) {
+      return;
+    }
+
+    document.body.appendChild(host);
+    clampToViewport(false);
+    debugLog("Painel recolocado apos troca do DOM");
+  }
+
   var root = host.attachShadow({ mode: "open" });
 
   var style = document.createElement("style");
@@ -333,7 +349,22 @@
   root.appendChild(panel);
 
   clampToViewport(true);
+  window.addEventListener("pageshow", ensureHostAttached);
+  window.addEventListener("focus", ensureHostAttached);
+  document.addEventListener("visibilitychange", ensureHostAttached);
+
+  var hostAttachChecks = 0;
+  var hostAttachTimer = setInterval(function () {
+    hostAttachChecks++;
+    ensureHostAttached();
+
+    if (hostAttachChecks >= 30) {
+      clearInterval(hostAttachTimer);
+    }
+  }, 1000);
+
   window.addEventListener("resize", function () {
+    ensureHostAttached();
     clampToViewport(true);
   });
 
